@@ -10,7 +10,7 @@ allowed-tools: Read Glob Write Edit Grep Bash(mkdir *) Bash(npm *) Bash(npx *) B
 You are the SDD Orchestrator. This command runs the **complete code delivery pipeline**:
 
 ```
-Generate → Check → Audit → (auto-fix if needed) → Deliver
+Generate → Check → Test (mandatory) → Audit → (auto-fix if needed) → Deliver
 ```
 
 The user does NOT need to run check or audit separately. This command handles everything.
@@ -31,9 +31,15 @@ Step 2: Plan (show what will be generated, wait for confirmation)
 Step 3: Generate (create code from spec)
 Step 4: Consistency Check (verify code matches spec)
   → If issues found: auto-correct and re-check (max 2 retries)
-Step 5: Quality Audit (best practices, security, tests, performance)
+Step 5: Test (MANDATORY — run all tests, must pass)
+  → If tests fail: auto-fix and re-test (max 2 retries)
+  → This step CANNOT be skipped or removed by any other step
+Step 6: Quality Audit (best practices, security, performance)
   → If critical issues found: auto-correct and re-audit (max 2 retries)
-Step 6: Deliver (final summary)
+  → Audit MUST NOT remove or skip tests. If audit suggests removing a test, IGNORE that suggestion.
+Step 7: Re-Test (MANDATORY — run tests again after any audit fixes)
+  → Guarantees audit auto-fixes didn't break anything
+Step 8: Deliver (final summary with test results)
 ```
 
 ---
@@ -149,13 +155,16 @@ After all subagents complete, collect results for the unified delivery (Step 6).
 #### Single spec — report each pipeline step as it starts:
 
 ```
-⏳ [user-auth] Step 1/4: Generating code...
-⏳ [user-auth] Step 2/4: Running consistency check...
-🔄 [user-auth] Check found 1 issue (Interface Match). Auto-fixing... (retry 1/2)
-✅ [user-auth] Step 2/4: Consistency check passed (6/6)
-⏳ [user-auth] Step 3/4: Running quality audit...
-✅ [user-auth] Step 3/4: Quality audit passed (6/6, 1 warning)
-✅ [user-auth] Step 4/4: Delivering results
+⏳ [user-auth] Step 1/5: Generating code...
+⏳ [user-auth] Step 2/5: Running consistency check...
+✅ [user-auth] Step 2/5: Consistency check passed (6/6)
+⏳ [user-auth] Step 3/5: Running tests...
+✅ [user-auth] Step 3/5: Tests passed (12/12)
+⏳ [user-auth] Step 4/5: Running quality audit...
+✅ [user-auth] Step 4/5: Quality audit passed (6/6, 1 warning)
+⏳ [user-auth] Step 5/5: Re-running tests after audit...
+✅ [user-auth] Step 5/5: Tests passed (12/12, no regressions)
+📦 [user-auth] DELIVERED
 ```
 
 #### Multi-spec — report wave progress and individual spec status:
@@ -165,9 +174,9 @@ After all subagents complete, collect results for the unified delivery (Step 6).
 
   ⏳ [user-auth] Generating...
   ⏳ [database] Generating...
-  ✅ [database] Generated → Checking → Passed → Auditing → Passed ✅
-  🔄 [user-auth] Generated → Checking → 1 issue, auto-fixing (retry 1/2)...
-  ✅ [user-auth] Generated → Check passed → Audit passed ✅
+  ✅ [database] Generated → Check ✅ → Tests ✅ → Audit ✅ → Re-Test ✅
+  🔄 [user-auth] Generated → Check: 1 issue, auto-fixing (1/2)...
+  ✅ [user-auth] Generated → Check ✅ → Tests ✅ → Audit ✅ → Re-Test ✅
 
 ✅ Wave 1/2 complete (2/2 delivered)
 
@@ -175,8 +184,8 @@ After all subagents complete, collect results for the unified delivery (Step 6).
 
   ⏳ [payment] Generating...
   ⏳ [notification] Generating...
-  ✅ [notification] Generated → Check passed → Audit passed ✅
-  ✅ [payment] Generated → Check passed → Audit passed (1 warning) ✅
+  ✅ [notification] Generated → Check ✅ → Tests ✅ → Audit ✅ → Re-Test ✅
+  ✅ [payment] Generated → Check ✅ → Tests ✅ → Audit ✅ (1⚠️) → Re-Test ✅
 
 ✅ Wave 2/2 complete (2/2 delivered)
 ```
@@ -184,7 +193,7 @@ After all subagents complete, collect results for the unified delivery (Step 6).
 #### After each subagent completes, immediately report to the user:
 
 ```
-📦 [spec-name] DONE — 3 files generated, check ✅, audit ✅ (1 warning)
+📦 [spec-name] DONE — 3 files generated, check ✅, tests ✅ (12/12), audit ✅ (1⚠️)
 ```
 
 Do NOT wait for all subagents to finish before showing anything. Report results as they come in.
@@ -219,16 +228,68 @@ Show progress:
 
 ---
 
-## Step 5: Quality Audit (automatic, internal)
+## Step 5: Test (MANDATORY — automatic, internal)
 
-After consistency check passes, run a quality audit across 6 dimensions:
+**This step is NON-NEGOTIABLE. It CANNOT be skipped, removed, or bypassed by any other step.**
+
+After consistency check passes, run ALL tests:
+
+### How to run tests
+
+1. Detect the project's test runner:
+   - Look for `package.json` → `scripts.test` → run `npm test`
+   - Look for `pytest.ini`, `pyproject.toml` → run `pytest`
+   - Look for `go.mod` → run `go test ./...`
+   - Look for `Cargo.toml` → run `cargo test`
+   - If no test runner detected, run the test files directly
+2. Run the tests and capture output
+3. Parse results: how many passed, failed, errored
+
+### If ALL tests pass:
+```
+✅ Tests: 12/12 passed
+```
+Continue to Step 6 (Audit).
+
+### If ANY test fails:
+
+1. Log which tests failed and why
+2. **Auto-fix** the code (NOT the tests) to make them pass
+   - If the test is testing a business rule from the spec, the test is correct — fix the implementation
+   - If the test itself has a bug (wrong assertion, wrong setup), fix the test
+3. Re-run ALL tests
+4. Maximum 2 fix attempts
+
+```
+🔄 Tests: 10/12 passed, 2 failed. Auto-fixing implementation...
+🔄 Retry 1: 12/12 passed. ✅
+```
+
+### If tests still fail after 2 retries:
+
+Report the failures in the delivery summary as **CRITICAL**. The pipeline continues but the delivery report will clearly flag:
+```
+❌ TESTS FAILING — 2 tests still fail after auto-fix attempts. Manual intervention required.
+```
+
+### Rules for this step:
+- **NEVER skip tests** — even if everything else passes
+- **NEVER delete or weaken a test** to make it pass
+- **NEVER mark a failing test as "expected"**
+- If no test files were generated in Step 3, this is itself a failure — go back and generate tests
+
+---
+
+## Step 6: Quality Audit (automatic, internal)
+
+After tests pass, run a quality audit across 6 dimensions:
 
 | # | Dimension | What to check |
 |---|-----------|---------------|
 | 1 | **Code Quality** | Naming, structure, DRY, readability, idiomatic patterns |
 | 2 | **Error Handling** | Graceful degradation, actionable messages, edge cases |
 | 3 | **Security** | Input validation, injection risks, hardcoded secrets, OWASP |
-| 4 | **Test Coverage** | Tests exist for business rules and error scenarios, tests pass |
+| 4 | **Test Coverage** | Tests cover business rules and error scenarios (DO NOT remove/weaken tests) |
 | 5 | **Performance** | N+1 queries, unbounded loops, memory leaks, obvious bottlenecks |
 | 6 | **Documentation** | Spec linkage, complex logic comments, type safety |
 
@@ -243,6 +304,14 @@ After consistency check passes, run a quality audit across 6 dimensions:
 
 ### Warnings (⚠️) are noted but do NOT trigger auto-correction.
 
+### CRITICAL RULE: Audit auto-fixes MUST NOT:
+- Delete or weaken any test
+- Remove test files
+- Change test assertions to make them pass
+- Skip or disable tests
+
+If the audit suggests removing a test, **IGNORE that suggestion**.
+
 Show progress:
 ```
 🔄 Quality audit: 5/6 ✅, 1 ❌ (Security: hardcoded API key). Fixing...
@@ -251,7 +320,25 @@ Show progress:
 
 ---
 
-## Step 6: Deliver
+## Step 7: Re-Test after Audit (MANDATORY — automatic, internal)
+
+**If the audit made ANY code changes (auto-fixes), run ALL tests again.**
+
+This ensures audit fixes didn't break anything. Same rules as Step 5.
+
+```
+⏳ Re-running tests after audit fixes...
+✅ Tests: 12/12 passed (no regressions)
+```
+
+If tests fail after audit fixes:
+1. Revert the audit fix that broke the test
+2. Report the audit issue as a warning instead of auto-fixing it
+3. Tests ALWAYS win over audit suggestions
+
+---
+
+## Step 8: Deliver
 
 Update spec frontmatter: add `output_files`, update `updated_at`.
 
@@ -274,14 +361,15 @@ Show the final delivery report:
 |------|--------|
 | Generation | ✅ Complete |
 | Consistency Check | ✅ 6/6 passed |
+| Tests | ✅ 12/12 passed |
 | Quality Audit | ✅ 6/6 passed (2 warnings) |
+| Re-Test after Audit | ✅ 12/12 passed (no regressions) |
 
 ### Warnings (non-blocking):
 - ⚠️ Performance: Consider adding an index for the email lookup
-- ⚠️ Documentation: Missing JSDoc on exported function
 
 ### Summary:
-Code is ready. Run /sdd:sdd-status for an overview of all specs.
+Code is ready and all tests pass. Run /sdd:sdd-status for an overview of all specs.
 ```
 
 ### Multi-spec:
@@ -289,13 +377,13 @@ Code is ready. Run /sdd:sdd-status for an overview of all specs.
 ```
 ## ✅ SDD Delivery Report
 
-| # | Spec | Generation | Check | Audit | Files |
-|---|------|-----------|-------|-------|-------|
-| 1 | user-auth | ✅ | ✅ 6/6 | ✅ 6/6 | 3 files |
-| 2 | payment | ✅ | ✅ 6/6 | ✅ 5/6 (1⚠️) | 3 files |
-| 3 | notification | ✅ | ✅ 6/6 | ✅ 6/6 | 2 files |
+| # | Spec | Generation | Check | Tests | Audit | Files |
+|---|------|-----------|-------|-------|-------|-------|
+| 1 | user-auth | ✅ | ✅ 6/6 | ✅ 8/8 | ✅ 6/6 | 3 files |
+| 2 | payment | ✅ | ✅ 6/6 | ✅ 12/12 | ✅ 5/6 (1⚠️) | 3 files |
+| 3 | notification | ✅ | ✅ 6/6 | ✅ 5/5 | ✅ 6/6 | 2 files |
 
-**Total:** 3 specs delivered, 8 files generated
+**Total:** 3 specs delivered, 8 files generated, 25/25 tests passing
 
 ### Warnings:
 - payment ⚠️ Performance: Consider connection pooling for database calls
@@ -312,3 +400,4 @@ Run /sdd:sdd-status for an overview of all specs.
 - If the spec is ambiguous, ASK the user rather than guessing
 - Auto-correction loop: max 2 retries per step, then report and move on
 - The user should NOT need to run any other command after /sdd:sdd-gen — deliver everything
+- **TESTS ARE SACRED**: Never delete, weaken, skip, or disable tests. If code fails a test, fix the code. If an audit fix breaks a test, revert the audit fix. Tests always win.
