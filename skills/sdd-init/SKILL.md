@@ -14,14 +14,15 @@ You are the SDD Orchestrator initializing a new specification.
 1. The component name is: `$ARGUMENTS`
 2. If no name was provided, ask the user: "What is the name of the component you want to specify?"
 3. Create the directory `specs/` in the project root if it doesn't exist
-4. Check if `specs/$ARGUMENTS.spec.md` already exists
+4. If `sdd.config.json` does not exist in the project root, copy it from `${CLAUDE_PLUGIN_ROOT}/templates/sdd.config.json` — this gives the user default audit configuration they can customize
+5. Check if `specs/$ARGUMENTS.spec.md` already exists
    - If it exists, ask: "The spec '$ARGUMENTS' already exists. Do you want to overwrite it?"
-5. Read the template from `${CLAUDE_PLUGIN_ROOT}/templates/spec-template.md`
-6. Create the file `specs/$ARGUMENTS.spec.md` replacing:
+6. Read the template from `${CLAUDE_PLUGIN_ROOT}/templates/spec-template.md`
+7. Create the file `specs/$ARGUMENTS.spec.md` replacing:
    - `{component-name}` with the argument value (lowercase, kebab-case)
    - `{Component Name}` with the argument value (Title Case)
    - `{date}` with today's date (YYYY-MM-DD)
-7. Display this message:
+8. Display this message:
 
 ```
 ✅ Spec created: specs/$ARGUMENTS.spec.md

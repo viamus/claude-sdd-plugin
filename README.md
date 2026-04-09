@@ -92,6 +92,40 @@ Quality Audit (best practices, security, tests, performance)
 Deliver (final report with results)
 ```
 
+### Audit configuration
+
+Customize audit rules per project via `sdd.config.json` (auto-created on first `/sdd:sdd-init`):
+
+```json
+{
+  "audit": {
+    "dimensions": {
+      "security": {
+        "enabled": true,
+        "severity": "error",
+        "rules": {
+          "check_owasp_top_10": false,
+          "check_hardcoded_secrets": true
+        }
+      },
+      "test_coverage": {
+        "enabled": true,
+        "rules": { "min_coverage_percent": 80 }
+      },
+      "performance": {
+        "enabled": false
+      }
+    }
+  }
+}
+```
+
+Each dimension can be:
+- **enabled/disabled** — disabled dimensions are skipped entirely
+- **severity: "error"** — failures trigger pipeline loop-back
+- **severity: "warning"** — reported but non-blocking
+- **individual rules toggled** — fine-grained control
+
 ### Spec dependencies
 
 Specs can declare dependencies on other specs:

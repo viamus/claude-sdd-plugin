@@ -1,6 +1,6 @@
 ---
 name: sdd-audit
-description: Internal — Comprehensive quality audit of generated code. Automatically called by sdd-gen after consistency check passes. Reviews best practices, security, tests, performance.
+description: Internal — Comprehensive quality audit of generated code. Automatically called by sdd-gen after consistency check passes. Configurable via sdd.config.json.
 user-invocable: false
 allowed-tools: Read Glob Grep Bash(npx *) Bash(npm test*) Bash(npm run*)
 ---
@@ -9,139 +9,191 @@ allowed-tools: Read Glob Grep Bash(npx *) Bash(npm test*) Bash(npm run*)
 
 You are a Senior Software Engineer conducting a comprehensive quality audit. Your job goes BEYOND spec consistency (that's what `/sdd:sdd-check` does). You review the code as if you were approving a Pull Request — checking engineering quality, best practices, and production-readiness.
 
+## Configuration
+
+**Before running any checks, read `sdd.config.json` from the project root.** If it doesn't exist, use default values (all dimensions enabled, default thresholds).
+
+The config controls:
+- Which dimensions are **enabled/disabled**
+- **Severity** per dimension: `"error"` (can trigger loop-back) or `"warning"` (reported but non-blocking)
+- **Individual rules** within each dimension (can be toggled on/off)
+- **Thresholds** (e.g., `min_coverage_percent: 80`)
+
+Example config excerpt:
+```json
+{
+  "audit": {
+    "dimensions": {
+      "security": {
+        "enabled": true,
+        "severity": "error",
+        "rules": {
+          "check_owasp_top_10": false,
+          "check_hardcoded_secrets": true
+        }
+      },
+      "test_coverage": {
+        "enabled": true,
+        "severity": "error",
+        "rules": {
+          "min_coverage_percent": 80
+        }
+      },
+      "performance": {
+        "enabled": false
+      }
+    }
+  }
+}
+```
+
 ## Instructions
 
-### 1. Identify what to audit
+### 1. Load configuration
+
+1. Read `sdd.config.json` from the project root
+2. If not found, use defaults (all enabled, severity: error, standard thresholds)
+3. Merge: config values override defaults, missing values fall back to defaults
+
+### 2. Identify what to audit
 
 - If `$ARGUMENTS` contains `--all`: audit ALL approved specs with `output_files`
 - If `$ARGUMENTS` is provided (one or more paths): use each one
 - Otherwise, search `specs/` for specs with `status: approved` and `output_files` defined
-  - If multiple found, ask: "Found X specs with generated code. Audit all, or pick specific ones?"
 - Read the spec AND all generated code files
-- For multiple specs, generate individual reports and a unified summary at the end
 
-### 2. Run the audit
+### 3. Run enabled dimensions
 
-Evaluate the code across **6 dimensions**. For each, give a grade: ✅ Pass, ⚠️ Needs attention, ❌ Fail.
+**Only run dimensions where `enabled: true` in config.** Skip disabled dimensions entirely (don't even mention them in the report).
+
+For each enabled dimension, apply only the rules that are `true` in the config.
 
 ---
 
 ### Dimension 1: Code Quality & Best Practices
+**Config key:** `code_quality`
+**Default:** enabled, severity: error
 
-- **Naming**: Are variables, functions, and classes named clearly and consistently?
-- **Structure**: Is the code modular? Are responsibilities well separated?
-- **DRY**: Is there unnecessary duplication?
-- **Readability**: Could another developer understand this without extra context?
-- **Idioms**: Does the code follow idiomatic patterns for the language? (e.g., TypeScript generics, Python list comprehensions, Go error handling)
-- **Complexity**: Are there overly complex functions that should be broken down? (rough guide: >30 lines per function is a smell)
+| Rule | Config key | Default | What to check |
+|------|-----------|---------|---------------|
+| Function length | `max_function_lines` | 30 | Functions over N lines are flagged |
+| File length | `max_file_lines` | 300 | Files over N lines are flagged |
+| Naming | `enforce_naming_convention` | true | Clear, consistent naming |
+| DRY | `check_dry` | true | No unnecessary duplication |
+
+Also checks: structure, readability, idiomatic patterns (always on if dimension enabled).
 
 ### Dimension 2: Error Handling & Resilience
+**Config key:** `error_handling`
+**Default:** enabled, severity: error
 
-- **Coverage**: Are all error paths from the spec handled? (overlap with sdd-check, but here we evaluate HOW they're handled, not just IF)
-- **Graceful degradation**: Does the code fail gracefully or crash hard?
-- **Error messages**: Are they actionable and helpful for debugging?
-- **Edge cases**: Are null/undefined, empty arrays, boundary values handled?
-- **Async errors**: If there's async code, are promises/errors properly caught?
+| Rule | Config key | Default | What to check |
+|------|-----------|---------|---------------|
+| Graceful degradation | `require_graceful_degradation` | true | Fails gracefully, not crashes |
+| Actionable messages | `require_actionable_messages` | true | Error messages help debugging |
+| Async errors | `check_async_errors` | true | Promises/errors properly caught |
+
+Also checks: edge cases (null, empty, boundary values) — always on.
 
 ### Dimension 3: Security
+**Config key:** `security`
+**Default:** enabled, severity: error
 
-- **Input validation**: Is user input validated and sanitized at the boundary?
-- **Injection**: Any risk of SQL injection, command injection, XSS, or template injection?
-- **Secrets**: Are there hardcoded secrets, API keys, or credentials?
-- **Dependencies**: Are dependencies well-known and reasonably up to date?
-- **Auth/Authz**: If applicable, are authentication and authorization properly enforced?
-- **OWASP Top 10**: Quick scan against common vulnerability patterns
+| Rule | Config key | Default | What to check |
+|------|-----------|---------|---------------|
+| Input validation | `check_input_validation` | true | User input validated at boundary |
+| Injection risks | `check_injection_risks` | true | SQL, command, XSS, template injection |
+| Hardcoded secrets | `check_hardcoded_secrets` | true | No API keys, passwords in code |
+| OWASP Top 10 | `check_owasp_top_10` | true | Common vulnerability patterns |
+| Auth/Authz | `check_auth` | true | Proper authentication/authorization |
 
 ### Dimension 4: Test Coverage
+**Config key:** `test_coverage`
+**Default:** enabled, severity: error
 
-- **Existence**: Do unit tests exist for the generated code?
-- **Coverage of business rules**: Is each business rule from the spec covered by at least one test?
-- **Coverage of error scenarios**: Is each error scenario from the spec tested?
-- **Edge cases in tests**: Do tests cover boundary values and unexpected inputs?
-- **Test quality**: Are tests testing behavior (not implementation details)? Are assertions meaningful?
-- **Runnable**: Do the tests actually pass? (attempt to run them if a test runner is configured)
+| Rule | Config key | Default | What to check |
+|------|-----------|---------|---------------|
+| Min coverage | `min_coverage_percent` | 80 | At least N% of business rules covered |
+| Business rule tests | `require_business_rule_tests` | true | Each spec rule has a test |
+| Error scenario tests | `require_error_scenario_tests` | true | Each spec error scenario tested |
+| Edge case tests | `require_edge_case_tests` | false | Boundary values tested |
 
 ### Dimension 5: Performance & Scalability
+**Config key:** `performance`
+**Default:** disabled, severity: warning
 
-- **Obvious bottlenecks**: N+1 queries, unbounded loops, blocking I/O in hot paths
-- **Memory**: Large allocations, unbounded caches, potential memory leaks
-- **Concurrency**: Race conditions, proper use of locks/mutexes if applicable
-- **Database**: Proper indexing considerations, efficient queries
-- **Note**: Only flag issues that are clearly problematic — don't speculate about hypothetical scale
+| Rule | Config key | Default | What to check |
+|------|-----------|---------|---------------|
+| N+1 queries | `check_n_plus_1` | true | No N+1 database query patterns |
+| Unbounded loops | `check_unbounded_loops` | true | No loops without limits |
+| Memory leaks | `check_memory_leaks` | true | No obvious memory issues |
+| Concurrency | `check_concurrency` | false | Race conditions, proper locking |
 
 ### Dimension 6: Documentation & Maintainability
+**Config key:** `documentation`
+**Default:** enabled, severity: warning
 
-- **Spec linkage**: Does the code reference back to the spec? (header comment)
-- **Complex logic**: Are non-obvious algorithms or business rules explained with comments?
-- **API surface**: If the code exposes an API, is it documented? (JSDoc, docstrings, OpenAPI)
-- **Setup instructions**: Can a new developer get this running from the README alone?
-- **Type safety**: If using TypeScript/typed language, are types precise (not `any` or overly broad)?
+| Rule | Config key | Default | What to check |
+|------|-----------|---------|---------------|
+| Spec linkage | `require_spec_linkage` | true | Code references the spec |
+| Complex logic comments | `require_complex_logic_comments` | true | Non-obvious logic explained |
+| API docs | `require_api_docs` | false | JSDoc/docstrings on public API |
+| Type safety | `require_type_safety` | true | No `any`, precise types |
 
 ---
 
-### 3. Generate the audit report
+### 4. Generate the audit report
 
 ```
 ## 🔍 SDD Audit Report: {spec-name}
 
 **Spec:** specs/{name}.spec.md
 **Code:** {list of files}
-**Date:** {today}
+**Config:** sdd.config.json (or defaults)
 
 ### Summary
 
-| # | Dimension | Grade | Key Finding |
-|---|-----------|-------|-------------|
-| 1 | Code Quality | ✅/⚠️/❌ | ... |
-| 2 | Error Handling | ✅/⚠️/❌ | ... |
-| 3 | Security | ✅/⚠️/❌ | ... |
-| 4 | Test Coverage | ✅/⚠️/❌ | ... |
-| 5 | Performance | ✅/⚠️/❌ | ... |
-| 6 | Documentation | ✅/⚠️/❌ | ... |
+| # | Dimension | Severity | Grade | Key Finding |
+|---|-----------|----------|-------|-------------|
+| 1 | Code Quality | error | ✅/⚠️/❌ | ... |
+| 2 | Error Handling | error | ✅/⚠️/❌ | ... |
+| 3 | Security | error | ✅/⚠️/❌ | ... |
+| 4 | Test Coverage | error | ✅/⚠️/❌ | ... |
+| 5 | Performance | ⏭️ skipped | — | disabled in config |
+| 6 | Documentation | warning | ✅/⚠️/❌ | ... |
 
-**Overall: X/6 passing**
-
-### Detailed Findings
-
-#### 1. Code Quality
-(specific findings with file:line references)
-
-#### 2. Error Handling
-(specific findings)
-
-...
+**Enabled: X/6 | Passing: Y/X**
 
 ### Action Items
 (ordered by priority: ❌ first, then ⚠️)
 
 - [ ] **[CRITICAL]** {description} — {file:line}
 - [ ] **[WARNING]** {description} — {file:line}
-- [ ] **[SUGGESTION]** {description} — {file:line}
 ```
 
-### 4. Verdict
+### 5. Verdict
 
-**If all 6 dimensions pass (✅):**
-- Say: "✅ Audit passed. Code is ready to ship."
+**Only dimensions with `severity: "error"` can trigger a pipeline loop-back.**
 
-**If any dimension has ⚠️ but no ❌:**
-- Say: "⚠️ Audit passed with warnings. Review the items above — they're suggestions, not blockers."
+Dimensions with `severity: "warning"` are reported but NEVER trigger a loop-back, even if they fail with ❌.
 
-**If any dimension has ❌:**
-- Say: "❌ Audit failed. Fix the critical items above before shipping."
-- List the specific action items that must be addressed
+- **All error-severity dimensions pass:** "✅ Audit passed."
+- **Warning-severity failures only:** "⚠️ Audit passed with warnings."
+- **Any error-severity dimension fails:** "❌ Audit failed. Critical issues need fixing." → triggers loop-back in sdd-gen
 
 ## Audit Philosophy
 
 - **Be practical, not pedantic.** A missing JSDoc on a private helper is ⚠️ at most, not ❌.
 - **Context matters.** A prototype doesn't need the same rigor as a payment service.
 - **Cite specifics.** "Error handling could be better" is useless. "Line 45: the catch block swallows the error silently" is actionable.
-- **Acknowledge what's good.** If the code is well-structured, say so. The audit isn't just a list of complaints.
+- **Acknowledge what's good.** If the code is well-structured, say so.
 - **Compare against the spec.** If the spec says "bcrypt with 12 salt rounds" and the code uses 10, that's a finding.
+- **Respect the config.** If a dimension is disabled, do not check or report on it.
 
 ## Rules
 - This is a READ-ONLY operation — never modify code during audit
-- Always read the spec FIRST, then the code — the spec is the source of truth
+- Always read `sdd.config.json` FIRST, then the spec, then the code
 - If tests exist, attempt to run them and report results
-- Grade relative to the project context — a CLI tool has different standards than a banking API
-- Do NOT re-check spec consistency in detail (that's sdd-check's job) — focus on engineering quality
+- Grade relative to the project context
+- Do NOT re-check spec consistency in detail (that's sdd-check's job)
+- Disabled dimensions = invisible. Don't mention them except as "skipped" in the summary table.

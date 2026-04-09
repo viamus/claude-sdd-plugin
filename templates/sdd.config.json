@@ -1,0 +1,79 @@
+{
+  "$schema": "https://github.com/viamus/claude-sdd-plugin/blob/main/docs/config-schema.md",
+  "version": "1.0",
+
+  "audit": {
+    "dimensions": {
+      "code_quality": {
+        "enabled": true,
+        "severity": "error",
+        "rules": {
+          "max_function_lines": 30,
+          "max_file_lines": 300,
+          "enforce_naming_convention": true,
+          "check_dry": true
+        }
+      },
+      "error_handling": {
+        "enabled": true,
+        "severity": "error",
+        "rules": {
+          "require_graceful_degradation": true,
+          "require_actionable_messages": true,
+          "check_async_errors": true
+        }
+      },
+      "security": {
+        "enabled": true,
+        "severity": "error",
+        "rules": {
+          "check_input_validation": true,
+          "check_injection_risks": true,
+          "check_hardcoded_secrets": true,
+          "check_owasp_top_10": true,
+          "check_auth": true
+        }
+      },
+      "test_coverage": {
+        "enabled": true,
+        "severity": "error",
+        "rules": {
+          "min_coverage_percent": 80,
+          "require_business_rule_tests": true,
+          "require_error_scenario_tests": true,
+          "require_edge_case_tests": false
+        }
+      },
+      "performance": {
+        "enabled": false,
+        "severity": "warning",
+        "rules": {
+          "check_n_plus_1": true,
+          "check_unbounded_loops": true,
+          "check_memory_leaks": true,
+          "check_concurrency": false
+        }
+      },
+      "documentation": {
+        "enabled": true,
+        "severity": "warning",
+        "rules": {
+          "require_spec_linkage": true,
+          "require_complex_logic_comments": true,
+          "require_api_docs": false,
+          "require_type_safety": true
+        }
+      }
+    },
+
+    "max_loops": 2,
+    "fail_on_warnings": false
+  },
+
+  "gen": {
+    "test_runner": "auto",
+    "test_command": null,
+    "output_dir": "src",
+    "generate_tests": true
+  }
+}
