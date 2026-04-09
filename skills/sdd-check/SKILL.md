@@ -1,7 +1,7 @@
 ---
 name: sdd-check
-description: Verify that generated code is consistent with its approved SDD specification. Use to detect drift between spec and implementation.
-user-invocable: true
+description: Internal — Verify that generated code is consistent with its approved SDD specification. Automatically called by sdd-gen. Can also be invoked manually to detect drift after manual code changes.
+user-invocable: false
 allowed-tools: Read Glob Grep
 ---
 

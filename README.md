@@ -6,9 +6,9 @@ Plugin that enforces **Spec-Driven Design (SDD)** in Claude Code: code is only g
 
 - **Spec-First Workflow**: Guides developers to write specs before code
 - **Contract Validation**: Validates that the spec has inputs, outputs, business rules, and error handling
-- **Context Injection**: Feeds Claude with the spec context before generating code
-- **Consistency Check**: Verifies that the generated code is aligned with the spec
-- **Quality Audit**: Final gate reviewing best practices, security, tests, and performance
+- **Dependency Chain**: Specs can declare predecessors/successors, enforced at generation time
+- **Automated Pipeline**: Generation includes automatic consistency check, quality audit, and self-correction
+- **Parallel Generation**: Multiple specs generated simultaneously, respecting dependency order
 
 ## Installation
 
@@ -41,10 +41,8 @@ claude --plugin-dir ./claude-sdd-plugin
 2. /sdd:sdd-build user-auth      → Builds the spec via guided conversation (recommended)
    (or edit the spec manually)
 3. /sdd:sdd-review                → Validates the spec (7 criteria)
-4. /sdd:sdd-gen                   → Generates code from the approved spec
-5. /sdd:sdd-check                 → Verifies spec consistency
-6. /sdd:sdd-audit                 → Final quality gate (best practices, security, tests)
-7. /sdd:sdd-status                → Overview of all specs
+4. /sdd:sdd-gen                   → Generates code + auto-check + auto-audit + delivers
+5. /sdd:sdd-status                → Overview of all specs and dependency graph
 ```
 
 ### Commands
@@ -54,10 +52,36 @@ claude --plugin-dir ./claude-sdd-plugin
 | `/sdd:sdd-init <name>` | Creates a new spec from the template |
 | `/sdd:sdd-build <name>` | Builds the spec via guided conversation |
 | `/sdd:sdd-review [path]` | Validates spec completeness |
-| `/sdd:sdd-gen [path\|--all]` | Generates code from approved specs (supports parallel) |
-| `/sdd:sdd-check [path\|--all]` | Verifies code vs spec consistency |
-| `/sdd:sdd-audit [path\|--all]` | Final quality gate (best practices, security, tests, performance) |
-| `/sdd:sdd-status` | Shows the state of all specs |
+| `/sdd:sdd-gen [path\|--all]` | Full pipeline: generate + check + audit + deliver |
+| `/sdd:sdd-status` | Shows all specs, statuses, and dependency graph |
+
+### What `/sdd:sdd-gen` does automatically
+
+```
+Generate code from spec
+  ↓
+Consistency Check (does code match spec?)
+  → If issues: auto-correct → re-check (max 2 retries)
+  ↓
+Quality Audit (best practices, security, tests, performance)
+  → If critical issues: auto-correct → re-audit (max 2 retries)
+  ↓
+Deliver (final report with results)
+```
+
+### Spec dependencies
+
+Specs can declare dependencies on other specs:
+
+```yaml
+---
+name: payment
+depends_on: [user-auth, database]   # must be implemented first
+unlocks: [billing]                   # can be implemented after this
+---
+```
+
+When running `/sdd:sdd-gen --all`, specs are generated in waves respecting the dependency chain. Specs at the same level run in parallel.
 
 ### Example spec
 
@@ -67,6 +91,8 @@ name: user-auth
 status: draft
 created_at: 2026-04-09
 updated_at: 2026-04-09
+depends_on: []
+unlocks: [payment, notification]
 output_files: []
 ---
 
@@ -112,17 +138,16 @@ claude-sdd-plugin/
 ├── .claude-plugin/
 │   ├── plugin.json                # Plugin manifest
 │   └── marketplace.json           # Marketplace catalog
-├── skills/                        # Slash commands (/sdd:*)
+├── skills/
 │   ├── sdd-init/SKILL.md         # Create spec (template)
 │   ├── sdd-build/SKILL.md        # Build spec via conversation
 │   ├── sdd-review/SKILL.md       # Validate spec
-│   ├── sdd-gen/SKILL.md          # Generate code
-│   ├── sdd-check/SKILL.md        # Verify consistency
-│   ├── sdd-audit/SKILL.md        # Final quality gate
-│   └── sdd-status/SKILL.md       # Workflow status
+│   ├── sdd-gen/SKILL.md          # Full pipeline: generate + check + audit
+│   ├── sdd-check/SKILL.md        # (internal) Consistency verification
+│   ├── sdd-audit/SKILL.md        # (internal) Quality audit
+│   └── sdd-status/SKILL.md       # Workflow status + dependency graph
 ├── templates/
 │   └── spec-template.md          # Default template
-├── specs/                         # User specs
 ├── docs/
 │   ├── workflow-state-machine.md
 │   └── plugin-specification.md

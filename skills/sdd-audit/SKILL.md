@@ -1,7 +1,7 @@
 ---
 name: sdd-audit
-description: Comprehensive quality audit of generated code — reviews best practices, test coverage, security, performance, and overall engineering quality beyond spec compliance. Final gate before shipping.
-user-invocable: true
+description: Internal — Comprehensive quality audit of generated code. Automatically called by sdd-gen after consistency check passes. Reviews best practices, security, tests, performance.
+user-invocable: false
 allowed-tools: Read Glob Grep Bash(npx *) Bash(npm test*) Bash(npm run*)
 ---
 

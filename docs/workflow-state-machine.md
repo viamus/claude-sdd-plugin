@@ -6,6 +6,9 @@
 ┌──────────────────────────────────────────────────────────────────────────┐
 │                           SDD WORKFLOW                                    │
 │                                                                          │
+│  USER COMMANDS                                                           │
+│  ════════════                                                            │
+│                                                                          │
 │  ┌──────┐    ┌────────────┐                                              │
 │  │ INIT │───▶│ SPEC_DRAFT │──────────────┐                               │
 │  └──────┘    └────────────┘              │                               │
@@ -15,30 +18,49 @@
 │  ┌──────────┐      │            └──────────────┘    └──────┬───────┘     │
 │  │SPEC_BUILD│──────┘                  │                    │             │
 │  └──────────┘                   [reject]                   │             │
-│   (guided                           │                      ▼             │
-│    conversation)                    │              ┌────────────┐        │
-│     ▲    │                          │              │  CODE_GEN  │        │
-│     │    │                          │              └─────┬──────┘        │
-│     └────┘                          │                    │               │
-│   (multi-turn)                      │                    ▼               │
-│                                     │           ┌────────────────┐       │
-│                                     │           │CONSISTENCY_CHECK│      │
-│                                     │           └───────┬────────┘       │
-│                                     │             pass/ │ \fail          │
-│                                     │                  ▼    ▼            │
-│                                     │          ┌───────┐ ┌────────┐     │
-│                                     │          │ AUDIT │ │CODE_GEN│     │
-│                                     │          └───┬───┘ └────────┘     │
-│                                     │        pass/ │ \fail               │
-│                                     │            ▼    ▼                  │
-│                                     │    ┌──────┐ ┌────────┐            │
-│                                     │    │ DONE │ │ FIX &  │            │
-│                                     │    └──────┘ │RE-AUDIT│            │
-│                                     │             └────────┘            │
-│                                     │                                    │
+│   (guided                                                  ▼             │
+│    conversation)                                                         │
+│     ▲    │                    ┌─────────────────────────────────────┐    │
+│     │    │                    │  SDD-GEN PIPELINE (automated)       │    │
+│     └────┘                    │                                     │    │
+│   (multi-turn)                │  ┌─────────┐                       │    │
+│                               │  │GENERATE │                       │    │
+│                               │  └────┬────┘                       │    │
+│                               │       ▼                            │    │
+│                               │  ┌─────────┐   fail   ┌────────┐  │    │
+│                               │  │ CHECK   │──────────▶│AUTO-FIX│  │    │
+│                               │  └────┬────┘   ◀──────┘────────┘  │    │
+│                               │       │ pass        (max 2x)      │    │
+│                               │       ▼                            │    │
+│                               │  ┌─────────┐   fail   ┌────────┐  │    │
+│                               │  │ AUDIT   │──────────▶│AUTO-FIX│  │    │
+│                               │  └────┬────┘   ◀──────┘────────┘  │    │
+│                               │       │ pass        (max 2x)      │    │
+│                               │       ▼                            │    │
+│                               │  ┌─────────┐                      │    │
+│                               │  │ DELIVER │                      │    │
+│                               │  └─────────┘                      │    │
+│                               └─────────────────────────────────────┘    │
 │                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
+
+## User-Facing Commands
+
+| Command | Description |
+|---------|-------------|
+| `/sdd:sdd-init <name>` | Creates spec template |
+| `/sdd:sdd-build <name>` | Builds spec via guided conversation |
+| `/sdd:sdd-review [path]` | Validates spec completeness |
+| `/sdd:sdd-gen [path\|--all]` | Full pipeline: generate + check + audit + deliver |
+| `/sdd:sdd-status` | Shows all specs, statuses, and dependency graph |
+
+## Internal Steps (automated by sdd-gen)
+
+| Step | What it does | On failure |
+|------|-------------|------------|
+| **Check** | Verifies code matches spec (interfaces, rules, errors) | Auto-corrects and re-checks (max 2 retries) |
+| **Audit** | Reviews code quality, security, tests, performance | Auto-corrects critical issues and re-audits (max 2 retries) |
 
 ## State Descriptions
 
@@ -63,61 +85,36 @@
 
 ### SPEC_REVIEW
 - **Trigger:** `/sdd:sdd-review <path-to-spec>`
-- **Action:** Validates that the spec has all required fields:
-  - ✅ Inputs defined (types, formats, constraints)
-  - ✅ Outputs defined (types, formats)
-  - ✅ Business Rules documented
-  - ✅ Error Handling specified
-  - ✅ Dependencies listed
+- **Action:** Validates 7 required fields, checks dependency references, detects circular deps
 - **Transition:**
   - If valid → SPEC_APPROVED
   - If invalid → SPEC_DRAFT (with gap report)
 
 ### SPEC_APPROVED
 - **Trigger:** Validation passes successfully
-- **Action:** 
-  - Marks spec as `status: approved` in frontmatter
-- **Transition:** → CODE_GEN (via `/sdd:sdd-gen`)
+- **Action:** Marks spec as `status: approved` in frontmatter
+- **Transition:** → SDD-GEN PIPELINE (via `/sdd:sdd-gen`)
 
-### CODE_GEN
-- **Trigger:** `/sdd:sdd-gen <path-to-spec>`
-- **Action:** Generates code based exclusively on the approved spec
-- **Transition:** → CONSISTENCY_CHECK
+### SDD-GEN PIPELINE (automated)
 
-### CONSISTENCY_CHECK
-- **Trigger:** Automatic after CODE_GEN
-- **Action:** `/sdd:sdd-check` validates that:
-  - All interfaces from the spec are implemented
-  - Input/output types match
-  - Error handling covers the specified scenarios
-- **Transition:**
-  - If consistent → AUDIT
-  - If divergent → CODE_GEN (with divergence report)
+Single command triggers the full chain:
 
-### AUDIT (final gate)
-- **Trigger:** `/sdd:sdd-audit` — runs after consistency check passes
-- **Action:** Comprehensive quality review across 6 dimensions:
-  - 1. Code Quality & Best Practices
-  - 2. Error Handling & Resilience
-  - 3. Security
-  - 4. Test Coverage
-  - 5. Performance & Scalability
-  - 6. Documentation & Maintainability
-- **Transition:**
-  - If all pass → DONE
-  - If critical failures → fix and re-audit
+1. **GENERATE**: Creates code from spec
+2. **CHECK**: Verifies consistency (6 checks). Auto-corrects on failure (max 2 retries).
+3. **AUDIT**: Reviews quality (6 dimensions). Auto-corrects critical issues (max 2 retries).
+4. **DELIVER**: Final report with results, warnings, and generated files list.
 
-## Commands (Slash Commands)
+### Parallel execution with dependencies
 
-| Command | State | Description |
-|---------|-------|-------------|
-| `/sdd:sdd-init <name>` | → SPEC_DRAFT | Creates spec template |
-| `/sdd:sdd-build <name>` | → SPEC_BUILD | Builds spec via guided conversation |
-| `/sdd:sdd-review [path]` | SPEC_DRAFT → SPEC_REVIEW | Validates spec completeness |
-| `/sdd:sdd-gen [path]` | SPEC_APPROVED → CODE_GEN | Generates code from spec |
-| `/sdd:sdd-check [path]` | CODE_GEN → CONSISTENCY_CHECK | Verifies spec consistency |
-| `/sdd:sdd-audit [path]` | CONSISTENCY_CHECK → AUDIT | Final quality gate |
-| `/sdd:sdd-status` | Any | Shows current workflow state |
+For `--all` mode, specs are organized in waves:
+
+```
+Wave 1 (no dependencies — parallel): user-auth, database
+Wave 2 (depends on Wave 1 — parallel): payment, notification
+Wave 3 (depends on Wave 2): billing
+```
+
+Each spec runs the full pipeline independently. Waves run sequentially.
 
 ## Session Memory
 

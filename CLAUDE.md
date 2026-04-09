@@ -14,10 +14,17 @@ This project uses **Spec-Driven Design (SDD)**. Code should only be generated af
 - `/sdd:sdd-init <name>` — Creates a new spec from the template
 - `/sdd:sdd-build <name>` — Builds the spec via guided conversation with the dev
 - `/sdd:sdd-review` — Validates whether the spec is complete
-- `/sdd:sdd-gen` — Generates code from the approved spec
-- `/sdd:sdd-check` — Verifies code vs spec consistency
-- `/sdd:sdd-audit` — Final quality gate (best practices, security, tests, performance)
-- `/sdd:sdd-status` — Shows the state of all specs
+- `/sdd:sdd-gen` — Full pipeline: generate code + consistency check + quality audit + deliver
+- `/sdd:sdd-status` — Shows the state of all specs and dependency graph
+
+## Pipeline (automated by sdd-gen)
+
+```
+Generate → Consistency Check → Quality Audit → Deliver
+              ↑ auto-fix            ↑ auto-fix
+```
+
+Check and audit are internal steps — the user only runs `/sdd:sdd-gen`.
 
 ## Plugin Structure
 
@@ -26,16 +33,15 @@ claude-sdd-plugin/
 ├── .claude-plugin/
 │   ├── plugin.json            # Plugin manifest
 │   └── marketplace.json       # Marketplace catalog
-├── skills/                    # Slash commands (namespaced as /sdd:*)
-│   ├── sdd-init/SKILL.md
-│   ├── sdd-build/SKILL.md
-│   ├── sdd-review/SKILL.md
-│   ├── sdd-gen/SKILL.md
-│   ├── sdd-check/SKILL.md
-│   ├── sdd-audit/SKILL.md
-│   └── sdd-status/SKILL.md
+├── skills/
+│   ├── sdd-init/SKILL.md     # Create spec
+│   ├── sdd-build/SKILL.md    # Build spec via conversation
+│   ├── sdd-review/SKILL.md   # Validate spec
+│   ├── sdd-gen/SKILL.md      # Full pipeline
+│   ├── sdd-check/SKILL.md    # (internal) Consistency check
+│   ├── sdd-audit/SKILL.md    # (internal) Quality audit
+│   └── sdd-status/SKILL.md   # Status + dependency graph
 ├── templates/
-│   └── spec-template.md       # Spec template
-├── specs/                     # User specs live here
-└── docs/                      # Documentation
+│   └── spec-template.md
+└── docs/
 ```

@@ -1,27 +1,46 @@
 ---
 name: sdd-gen
-description: Generate implementation code from approved SDD specifications. Supports single spec, multiple specs, or all approved specs in parallel using subagents. Use after /sdd:sdd-review approves a spec.
+description: Generate implementation code from approved SDD specifications. Includes automatic consistency check, quality audit, and self-correction loop. Supports single spec, multiple specs, or all approved specs in parallel.
 user-invocable: true
-allowed-tools: Read Glob Write Edit Bash(mkdir *) Bash(npm *) Bash(npx *) Agent
+allowed-tools: Read Glob Write Edit Grep Bash(mkdir *) Bash(npm *) Bash(npx *) Bash(npm test*) Bash(npm run*) Agent
 ---
 
-# SDD Gen — Generate Code from Spec
+# SDD Gen — Generate, Verify & Deliver
 
-You are the SDD Orchestrator generating implementation code strictly from approved specifications.
+You are the SDD Orchestrator. This command runs the **complete code delivery pipeline**:
+
+```
+Generate → Check → Audit → (auto-fix if needed) → Deliver
+```
+
+The user does NOT need to run check or audit separately. This command handles everything.
 
 ## Modes of Operation
 
-This skill supports three modes:
-
 | Mode | Trigger | Behavior |
 |------|---------|----------|
-| **Single** | `/sdd:sdd-gen path/to/spec.spec.md` | Generates code for one spec |
-| **Multiple** | `/sdd:sdd-gen spec1 spec2 spec3` | Generates code for listed specs in parallel |
-| **All** | `/sdd:sdd-gen --all` | Finds all approved specs and generates in parallel |
+| **Single** | `/sdd:sdd-gen spec-name` | Full pipeline for one spec |
+| **Multiple** | `/sdd:sdd-gen spec1 spec2 spec3` | Full pipeline for listed specs in parallel |
+| **All** | `/sdd:sdd-gen --all` | Full pipeline for all approved specs, respecting dependency order |
 
-## Instructions
+## Pipeline Overview
 
-### 1. Determine which specs to implement
+```
+Step 1: Validate (approval + dependencies)
+Step 2: Plan (show what will be generated, wait for confirmation)
+Step 3: Generate (create code from spec)
+Step 4: Consistency Check (verify code matches spec)
+  → If issues found: auto-correct and re-check (max 2 retries)
+Step 5: Quality Audit (best practices, security, tests, performance)
+  → If critical issues found: auto-correct and re-audit (max 2 retries)
+Step 6: Deliver (final summary)
+```
+
+---
+
+## Step 1: Validate
+
+### Determine which specs to implement
 
 - If `$ARGUMENTS` contains `--all`: search `specs/` for ALL files with `status: approved`
 - If `$ARGUMENTS` contains multiple names/paths (space-separated): use each one
@@ -30,154 +49,219 @@ This skill supports three modes:
   - If multiple found, ask: "Found X approved specs. Generate all in parallel, or pick specific ones?"
   - If none found, say: "No approved specs found. Use /sdd:sdd-review to approve a spec."
 
-### 2. Validate all specs before starting
+### Gate checks
 
 For each spec:
-- Read the file
-- **GATE CHECK 1 — Approval**: Verify `status: approved` in frontmatter
+- **Gate 1 — Approval**: Verify `status: approved` in frontmatter
   - If NOT approved: "⚠️ Skipping {name} — not approved. Run /sdd:sdd-review first."
-- **GATE CHECK 2 — Dependency chain**: Check the `depends_on` field in frontmatter
-  - For each dependency listed, verify:
-    - The dependency spec exists in `specs/`
-    - The dependency spec has `status: approved`
-    - The dependency spec has `output_files` (code already generated)
-  - If ANY dependency is NOT satisfied, **block that spec** with a clear message:
+- **Gate 2 — Dependency chain**: Check the `depends_on` field
+  - For each dependency: verify the spec exists, is approved, and has generated code
+  - If ANY dependency is unmet, block with a clear table showing what's missing
 
-```
-🚫 Cannot generate {name} — unmet dependencies:
+For `--all` mode: determine **execution order** via topological sort of the dependency graph. Specs at the same level run in parallel (waves).
 
-| Dependency | Status | Code Generated | Issue |
-|------------|--------|----------------|-------|
-| user-auth | ✅ approved | ✅ yes | OK |
-| database | ✅ approved | ❌ no | Needs /sdd:sdd-gen database first |
-| payment | ❌ draft | ❌ no | Needs /sdd:sdd-review first |
+---
 
-Resolve the dependencies above, then retry.
-```
+## Step 2: Plan
 
-- If NO specs pass both gates, STOP.
-- For `--all` mode: automatically determine the correct **execution order** based on the dependency graph (topological sort). Generate specs with no dependencies first, then their dependents, etc. Specs at the same level can run in parallel.
+Present the implementation plan and **wait for user confirmation**.
 
-### 3. Present the implementation plan
-
-#### Single spec mode:
+#### Single spec:
 
 ```
 ## 📦 Implementation Plan: {spec-name}
 
 **Based on spec:** specs/{name}.spec.md
+**Pipeline:** Generate → Check → Audit → Deliver (fully automated)
 
 ### Files to create:
 - `src/{name}.ts` — Main implementation
 - `src/{name}.types.ts` — Types and interfaces (if applicable)
 - `src/{name}.test.ts` — Unit tests
 
-### Interfaces derived from the spec:
-- Input: {input summary}
-- Output: {output summary}
-
-### Business rules to implement:
-1. {rule 1}
-2. {rule 2}
-
-### Error scenarios to cover:
-1. {error 1}
-2. {error 2}
-
-Do you want to proceed with the generation?
-```
-
-#### Multi-spec mode (parallel with dependency awareness):
-
-```
-## 📦 Parallel Implementation Plan
-
-### Execution Order (based on dependency chain):
-
-🔵 Wave 1 (no dependencies — run in parallel):
-  - user-auth (4 rules, 3 errors)
-  - database (2 rules, 2 errors)
-
-🔵 Wave 2 (depends on Wave 1 — run in parallel after Wave 1 completes):
-  - payment → depends on: user-auth, database (6 rules, 5 errors)
-  - notification → depends on: user-auth (3 rules, 2 errors)
-
-🔵 Wave 3 (depends on Wave 2):
-  - billing → depends on: payment (4 rules, 3 errors)
-
-**Total:** 5 specs → ~15 files in 3 waves
-
-⚡ Specs within each wave run in parallel. Waves run sequentially.
+### Scope:
+- {N} business rules to implement
+- {M} error scenarios to cover
 
 Do you want to proceed?
 ```
 
-### 4. Wait for user confirmation before generating any code
-
-### 5. Generate code
-
-#### Single spec: generate directly
-
-Follow the code generation rules below.
-
-#### Multiple specs: launch parallel subagents
-
-For each spec, launch a subagent using the Agent tool with:
-- **description**: "SDD Gen: {spec-name}"
-- **prompt**: Include the full spec content and all code generation rules below
-- Run subagents **in parallel** (all Agent calls in a single message)
-
-Each subagent must:
-1. Read the spec it's assigned
-2. Generate all code files for that spec
-3. Update the spec frontmatter with `output_files`
-4. Report what was generated
-
-After all subagents complete, show a unified summary:
+#### Multi-spec:
 
 ```
-## ✅ Parallel Generation Complete
+## 📦 Implementation Plan
 
-| # | Spec | Status | Files Generated |
-|---|------|--------|-----------------|
-| 1 | user-auth | ✅ Done | src/user-auth.ts, src/user-auth.test.ts |
-| 2 | payment | ✅ Done | src/payment.ts, src/payment.test.ts |
-| 3 | notification | ✅ Done | src/notification.ts, src/notification.test.ts |
+### Execution Order:
 
-Next steps:
-- /sdd:sdd-check --all  → Verify consistency for all specs
-- /sdd:sdd-audit --all  → Run quality audit on all generated code
+🔵 Wave 1 (no dependencies — parallel):
+  - user-auth (4 rules, 3 errors)
+  - database (2 rules, 2 errors)
+
+🔵 Wave 2 (depends on Wave 1 — parallel):
+  - payment → depends on: user-auth, database
+  - notification → depends on: user-auth
+
+**Total:** 4 specs in 2 waves
+**Pipeline:** Each spec goes through Generate → Check → Audit → Deliver
+
+Do you want to proceed?
 ```
 
-### 6. Code Generation Rules (apply to both single and parallel modes)
+---
 
-- **Interface First**: Start by creating types/interfaces that mirror the spec's Inputs and Outputs tables EXACTLY
-- **1:1 Mapping**: Every business rule in the spec = one clearly identifiable block in the code
-- **Error Coverage**: Every error scenario in the spec = one error handling branch in the code
-- **No Extras**: Do NOT add functionality, parameters, validations, or error cases not in the spec
-- **No Stubs**: Every function must be fully implemented, not a placeholder
+## Step 3: Generate
+
+### Code Generation Rules
+
+- **Interface First**: Create types/interfaces that mirror the spec's Inputs and Outputs tables EXACTLY
+- **1:1 Mapping**: Every business rule = one clearly identifiable block in the code
+- **Error Coverage**: Every error scenario = one error handling branch
+- **No Extras**: Do NOT add functionality not in the spec
+- **No Stubs**: Every function must be fully implemented
 - **Testable**: Each business rule should be testable in isolation
-- **Cross-spec awareness**: When generating multiple specs in parallel, if specs reference each other (shared types, dependencies), ensure consistency between generated files
+- **Cross-spec awareness**: When generating multiple specs, ensure consistency for shared types
 
 ### Code Header
 ```
 /**
  * Implementation of: specs/{name}.spec.md
  * Generated by SDD Orchestrator
- * DO NOT modify without updating the spec first
  */
 ```
 
-### 7. After generation
+### For multiple specs: use parallel subagents
 
-- Update each spec frontmatter: add `output_files` array with paths of generated files, update `updated_at`
-- For single spec: automatically trigger consistency check logic (as described in /sdd:sdd-check)
-- For multiple specs: suggest running `/sdd:sdd-check --all`
+Launch one subagent per spec (or per wave if dependencies exist). Each subagent runs the full pipeline (Steps 3-5) independently.
+
+Subagent prompt must include:
+- The full spec content
+- All code generation rules
+- The consistency check matrix (Step 4)
+- The audit dimensions (Step 5)
+- Instructions for the auto-correction loop
+
+After all subagents complete, collect results for the unified delivery (Step 6).
+
+---
+
+## Step 4: Consistency Check (automatic, internal)
+
+Immediately after generating code, verify consistency:
+
+| # | Check | How to Verify |
+|---|-------|---------------|
+| 1 | **Interface Match** | Input types in code match spec's Inputs table |
+| 2 | **Output Match** | Return types in code match spec's Outputs table |
+| 3 | **Business Rules** | Each numbered rule has corresponding logic in code |
+| 4 | **Error Handling** | Each error scenario has a corresponding catch/throw/return |
+| 5 | **No Extra Features** | Code doesn't implement functionality not in the spec |
+| 6 | **Dependencies Used** | Libraries listed in spec are the ones used in code |
+
+### If issues found:
+
+1. Log what's wrong (which check failed and why)
+2. **Auto-correct**: fix the code to match the spec
+3. Re-run the consistency check
+4. Maximum 2 correction attempts. If still failing after 2 retries, report the remaining issues in the delivery summary and continue to Step 5.
+
+Show progress:
+```
+🔄 Consistency check: 5/6 passed. Fixing: Interface Match...
+🔄 Retry 1: 6/6 passed. ✅
+```
+
+---
+
+## Step 5: Quality Audit (automatic, internal)
+
+After consistency check passes, run a quality audit across 6 dimensions:
+
+| # | Dimension | What to check |
+|---|-----------|---------------|
+| 1 | **Code Quality** | Naming, structure, DRY, readability, idiomatic patterns |
+| 2 | **Error Handling** | Graceful degradation, actionable messages, edge cases |
+| 3 | **Security** | Input validation, injection risks, hardcoded secrets, OWASP |
+| 4 | **Test Coverage** | Tests exist for business rules and error scenarios, tests pass |
+| 5 | **Performance** | N+1 queries, unbounded loops, memory leaks, obvious bottlenecks |
+| 6 | **Documentation** | Spec linkage, complex logic comments, type safety |
+
+### Grading: ✅ Pass, ⚠️ Warning, ❌ Critical
+
+### If critical issues (❌) found:
+
+1. Log what's wrong
+2. **Auto-correct**: fix the code
+3. Re-run the audit on the corrected code
+4. Maximum 2 correction attempts. If still failing, report in delivery summary.
+
+### Warnings (⚠️) are noted but do NOT trigger auto-correction.
+
+Show progress:
+```
+🔄 Quality audit: 5/6 ✅, 1 ❌ (Security: hardcoded API key). Fixing...
+🔄 Retry 1: 6/6 ✅. All clear.
+```
+
+---
+
+## Step 6: Deliver
+
+Update spec frontmatter: add `output_files`, update `updated_at`.
+
+Show the final delivery report:
+
+### Single spec:
+
+```
+## ✅ SDD Delivery Report: {spec-name}
+
+**Spec:** specs/{name}.spec.md
+
+### Generated Files:
+- src/{name}.ts
+- src/{name}.types.ts
+- src/{name}.test.ts
+
+### Pipeline Results:
+| Step | Result |
+|------|--------|
+| Generation | ✅ Complete |
+| Consistency Check | ✅ 6/6 passed |
+| Quality Audit | ✅ 6/6 passed (2 warnings) |
+
+### Warnings (non-blocking):
+- ⚠️ Performance: Consider adding an index for the email lookup
+- ⚠️ Documentation: Missing JSDoc on exported function
+
+### Summary:
+Code is ready. Run /sdd:sdd-status for an overview of all specs.
+```
+
+### Multi-spec:
+
+```
+## ✅ SDD Delivery Report
+
+| # | Spec | Generation | Check | Audit | Files |
+|---|------|-----------|-------|-------|-------|
+| 1 | user-auth | ✅ | ✅ 6/6 | ✅ 6/6 | 3 files |
+| 2 | payment | ✅ | ✅ 6/6 | ✅ 5/6 (1⚠️) | 3 files |
+| 3 | notification | ✅ | ✅ 6/6 | ✅ 6/6 | 2 files |
+
+**Total:** 3 specs delivered, 8 files generated
+
+### Warnings:
+- payment ⚠️ Performance: Consider connection pooling for database calls
+
+Run /sdd:sdd-status for an overview of all specs.
+```
+
+---
 
 ## Rules
 - NEVER generate code without an approved spec
 - NEVER add features beyond what the spec defines
 - ALWAYS link generated code back to the spec
-- If the spec is ambiguous on any point, ASK the user rather than guessing
-- Generated code should be idiomatic for the target language
-- When running parallel, each subagent works independently — they should not depend on each other's output
+- If the spec is ambiguous, ASK the user rather than guessing
+- Auto-correction loop: max 2 retries per step, then report and move on
+- The user should NOT need to run any other command after /sdd:sdd-gen — deliver everything
