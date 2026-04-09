@@ -142,6 +142,53 @@ Subagent prompt must include:
 
 After all subagents complete, collect results for the unified delivery (Step 6).
 
+### Progress Reporting
+
+**CRITICAL**: Keep the user informed at every stage. They must never be left wondering what's happening.
+
+#### Single spec — report each pipeline step as it starts:
+
+```
+⏳ [user-auth] Step 1/4: Generating code...
+⏳ [user-auth] Step 2/4: Running consistency check...
+🔄 [user-auth] Check found 1 issue (Interface Match). Auto-fixing... (retry 1/2)
+✅ [user-auth] Step 2/4: Consistency check passed (6/6)
+⏳ [user-auth] Step 3/4: Running quality audit...
+✅ [user-auth] Step 3/4: Quality audit passed (6/6, 1 warning)
+✅ [user-auth] Step 4/4: Delivering results
+```
+
+#### Multi-spec — report wave progress and individual spec status:
+
+```
+🔵 Wave 1/2 — Starting 2 specs in parallel: user-auth, database
+
+  ⏳ [user-auth] Generating...
+  ⏳ [database] Generating...
+  ✅ [database] Generated → Checking → Passed → Auditing → Passed ✅
+  🔄 [user-auth] Generated → Checking → 1 issue, auto-fixing (retry 1/2)...
+  ✅ [user-auth] Generated → Check passed → Audit passed ✅
+
+✅ Wave 1/2 complete (2/2 delivered)
+
+🔵 Wave 2/2 — Starting 2 specs in parallel: payment, notification
+
+  ⏳ [payment] Generating...
+  ⏳ [notification] Generating...
+  ✅ [notification] Generated → Check passed → Audit passed ✅
+  ✅ [payment] Generated → Check passed → Audit passed (1 warning) ✅
+
+✅ Wave 2/2 complete (2/2 delivered)
+```
+
+#### After each subagent completes, immediately report to the user:
+
+```
+📦 [spec-name] DONE — 3 files generated, check ✅, audit ✅ (1 warning)
+```
+
+Do NOT wait for all subagents to finish before showing anything. Report results as they come in.
+
 ---
 
 ## Step 4: Consistency Check (automatic, internal)
