@@ -158,7 +158,19 @@ When all sections have content (even with some TODOs):
 - When ready, update `status: draft` (ready for `/sdd:sdd-review`)
 - Say: "Spec ready for review! Run /sdd:sdd-review to validate."
 
-### 9. Resume a previous session
+### 9. Load knowledge (if available)
+
+Before starting any conversation, check if `specs/.memory/<name>.knowledge.md` or `specs/.memory/global.knowledge.md` exists:
+- If found, read it FIRST
+- Use the knowledge to:
+  - Pre-fill obvious sections (known interfaces, data models)
+  - Ask more targeted questions based on discovered constraints
+  - Suggest business rules found in existing code/docs
+  - Use the developer's domain terms from the knowledge base
+- Say: "📚 I loaded existing knowledge for '{name}' ({N} sources, {M} findings). I'll use this to guide the conversation."
+- If no knowledge found, suggest: "💡 Tip: Run /sdd:sdd-learn {name} docs/ to ingest project docs before building the spec."
+
+### 10. Resume a previous session
 
 If a memory file already exists for this component:
 - Read it and resume where you left off

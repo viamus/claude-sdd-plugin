@@ -61,11 +61,12 @@ claude --plugin-dir ./claude-sdd-plugin
 
 ```
 1. /sdd:sdd-init user-auth       → Creates specs/user-auth.spec.md (empty template)
-2. /sdd:sdd-build user-auth      → Builds the spec via guided conversation (recommended)
+2. /sdd:sdd-learn user-auth docs/ https://api.example.com/docs → Ingest project knowledge (optional)
+3. /sdd:sdd-build user-auth      → Builds the spec via guided conversation (auto-loads knowledge)
    (or edit the spec manually)
-3. /sdd:sdd-review                → Validates the spec (7 criteria)
-4. /sdd:sdd-gen                   → Generates code + auto-check + auto-audit + delivers
-5. /sdd:sdd-status                → Overview of all specs and dependency graph
+4. /sdd:sdd-review                → Validates the spec (7 criteria)
+5. /sdd:sdd-gen                   → Generates code + auto-check + auto-audit + delivers
+6. /sdd:sdd-status                → Overview of all specs and dependency graph
 ```
 
 ### Commands
@@ -73,7 +74,8 @@ claude --plugin-dir ./claude-sdd-plugin
 | Command | Description |
 |---------|-------------|
 | `/sdd:sdd-init <name>` | Creates a new spec from the template |
-| `/sdd:sdd-build <name>` | Builds the spec via guided conversation |
+| `/sdd:sdd-learn <name> <sources>` | Ingests docs, files, or web pages into spec context |
+| `/sdd:sdd-build <name>` | Builds the spec via guided conversation (auto-loads knowledge) |
 | `/sdd:sdd-review [path]` | Validates spec completeness |
 | `/sdd:sdd-gen [path\|--all]` | Full pipeline: generate + check + audit + deliver |
 | `/sdd:sdd-status` | Shows all specs, statuses, and dependency graph |
@@ -197,6 +199,7 @@ claude-sdd-plugin/
 │   └── marketplace.json           # Marketplace catalog
 ├── skills/
 │   ├── sdd-init/SKILL.md         # Create spec (template)
+│   ├── sdd-learn/SKILL.md        # Ingest knowledge for specs
 │   ├── sdd-build/SKILL.md        # Build spec via conversation
 │   ├── sdd-review/SKILL.md       # Validate spec
 │   ├── sdd-gen/SKILL.md          # Full pipeline: generate + check + audit

@@ -12,7 +12,8 @@ This project uses **Spec-Driven Design (SDD)**. Code should only be generated af
 ## Workflow
 
 - `/sdd:sdd-init <name>` — Creates a new spec from the template
-- `/sdd:sdd-build <name>` — Builds the spec via guided conversation with the dev
+- `/sdd:sdd-learn <name> <sources>` — Ingests docs, files, or web pages into spec context
+- `/sdd:sdd-build <name>` — Builds the spec via guided conversation (auto-loads knowledge)
 - `/sdd:sdd-review` — Validates whether the spec is complete
 - `/sdd:sdd-gen` — Full pipeline: generate code + consistency check + quality audit + deliver
 - `/sdd:sdd-status` — Shows the state of all specs and dependency graph
@@ -35,6 +36,7 @@ claude-sdd-plugin/
 │   └── marketplace.json       # Marketplace catalog
 ├── skills/
 │   ├── sdd-init/SKILL.md     # Create spec
+│   ├── sdd-learn/SKILL.md    # Ingest knowledge for specs
 │   ├── sdd-build/SKILL.md    # Build spec via conversation
 │   ├── sdd-review/SKILL.md   # Validate spec
 │   ├── sdd-gen/SKILL.md      # Full pipeline
