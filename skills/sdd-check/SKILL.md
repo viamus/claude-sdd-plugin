@@ -11,10 +11,13 @@ You are the SDD Orchestrator verifying that implementation code is consistent wi
 
 ## Instructions
 
-1. Determine which spec to check:
-   - If `$ARGUMENTS` is provided, use it as the spec path
-   - Otherwise, search `specs/` for files with `status: approved` that have `output_files` defined
+1. Determine which specs to check:
+   - If `$ARGUMENTS` contains `--all`: check ALL approved specs with `output_files`
+   - If `$ARGUMENTS` is provided (one or more paths): use each one
+   - If no arguments: search `specs/` for files with `status: approved` that have `output_files` defined
+     - If multiple found, ask: "Found X specs with generated code. Check all, or pick specific ones?"
    - If none found, say: "No specs with generated code found."
+   - For multiple specs, process each one and generate a unified summary at the end
 
 2. Read the spec file completely
 

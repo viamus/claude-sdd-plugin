@@ -13,9 +13,12 @@ You are a Senior Software Engineer conducting a comprehensive quality audit. You
 
 ### 1. Identify what to audit
 
-- If `$ARGUMENTS` is provided, use it as the spec path
+- If `$ARGUMENTS` contains `--all`: audit ALL approved specs with `output_files`
+- If `$ARGUMENTS` is provided (one or more paths): use each one
 - Otherwise, search `specs/` for specs with `status: approved` and `output_files` defined
+  - If multiple found, ask: "Found X specs with generated code. Audit all, or pick specific ones?"
 - Read the spec AND all generated code files
+- For multiple specs, generate individual reports and a unified summary at the end
 
 ### 2. Run the audit
 

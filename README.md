@@ -54,9 +54,9 @@ claude --plugin-dir ./claude-sdd-plugin
 | `/sdd:sdd-init <name>` | Creates a new spec from the template |
 | `/sdd:sdd-build <name>` | Builds the spec via guided conversation |
 | `/sdd:sdd-review [path]` | Validates spec completeness |
-| `/sdd:sdd-gen [path]` | Generates code from the approved spec |
-| `/sdd:sdd-check [path]` | Verifies code vs spec consistency |
-| `/sdd:sdd-audit [path]` | Final quality gate (best practices, security, tests, performance) |
+| `/sdd:sdd-gen [path\|--all]` | Generates code from approved specs (supports parallel) |
+| `/sdd:sdd-check [path\|--all]` | Verifies code vs spec consistency |
+| `/sdd:sdd-audit [path\|--all]` | Final quality gate (best practices, security, tests, performance) |
 | `/sdd:sdd-status` | Shows the state of all specs |
 
 ### Example spec
