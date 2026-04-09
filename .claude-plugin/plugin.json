@@ -1,0 +1,8 @@
+{
+  "name": "sdd",
+  "description": "Spec-Driven Design Orchestrator — enforces spec-first methodology in Claude Code. Code is only generated after specifications are created, validated, and approved.",
+  "version": "1.0.0",
+  "author": {
+    "name": "viamu"
+  }
+}
