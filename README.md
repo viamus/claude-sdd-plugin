@@ -56,8 +56,9 @@ scoop install jq
    (or edit the spec manually)
 3. /sdd:sdd-review                → Validates the spec (7 criteria)
 4. /sdd:sdd-gen                   → Generates code from the approved spec
-5. /sdd:sdd-check                 → Verifies consistency
-6. /sdd:sdd-status                → Overview of all specs
+5. /sdd:sdd-check                 → Verifies spec consistency
+6. /sdd:sdd-audit                 → Final quality gate (best practices, security, tests)
+7. /sdd:sdd-status                → Overview of all specs
 ```
 
 ### Commands
@@ -69,6 +70,7 @@ scoop install jq
 | `/sdd:sdd-review [path]` | Validates spec completeness |
 | `/sdd:sdd-gen [path]` | Generates code from the approved spec |
 | `/sdd:sdd-check [path]` | Verifies code vs spec consistency |
+| `/sdd:sdd-audit [path]` | Final quality gate (best practices, security, tests, performance) |
 | `/sdd:sdd-status` | Shows the state of all specs |
 
 ### Example spec
@@ -129,6 +131,7 @@ claude-sdd-plugin/
 │   ├── sdd-review/SKILL.md       # Validate spec
 │   ├── sdd-gen/SKILL.md          # Generate code
 │   ├── sdd-check/SKILL.md        # Verify consistency
+│   ├── sdd-audit/SKILL.md        # Final quality gate
 │   └── sdd-status/SKILL.md       # Workflow status
 ├── hooks/
 │   ├── hooks.json                 # Hook configuration

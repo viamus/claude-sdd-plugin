@@ -26,9 +26,15 @@
 │                                     │           └───────┬────────┘       │
 │                                     │             pass/ │ \fail          │
 │                                     │                  ▼    ▼            │
-│                                     │          ┌──────┐ ┌────────┐      │
-│                                     │          │ DONE │ │CODE_GEN│      │
-│                                     │          └──────┘ └────────┘      │
+│                                     │          ┌───────┐ ┌────────┐     │
+│                                     │          │ AUDIT │ │CODE_GEN│     │
+│                                     │          └───┬───┘ └────────┘     │
+│                                     │        pass/ │ \fail               │
+│                                     │            ▼    ▼                  │
+│                                     │    ┌──────┐ ┌────────┐            │
+│                                     │    │ DONE │ │ FIX &  │            │
+│                                     │    └──────┘ │RE-AUDIT│            │
+│                                     │             └────────┘            │
 │                                     │                                    │
 │  [user tries to write code without spec]                                 │
 │           ▼                                                              │
@@ -45,7 +51,7 @@
 - **Action:** Creates directory structure and `.spec.md` file with template
 - **Transition:** → SPEC_DRAFT or → SPEC_BUILD
 
-### SPEC_BUILD (new)
+### SPEC_BUILD
 - **Trigger:** `/sdd:sdd-build <component-name>`
 - **Action:** Guided multi-turn conversation for requirements discovery
   - Creates session memory in `specs/.memory/<name>.context.md`
@@ -89,8 +95,21 @@
   - Input/output types match
   - Error handling covers the specified scenarios
 - **Transition:**
-  - If consistent → DONE
+  - If consistent → AUDIT
   - If divergent → CODE_GEN (with divergence report)
+
+### AUDIT (final gate)
+- **Trigger:** `/sdd:sdd-audit` — runs after consistency check passes
+- **Action:** Comprehensive quality review across 6 dimensions:
+  - 1. Code Quality & Best Practices
+  - 2. Error Handling & Resilience
+  - 3. Security
+  - 4. Test Coverage
+  - 5. Performance & Scalability
+  - 6. Documentation & Maintainability
+- **Transition:**
+  - If all pass → DONE
+  - If critical failures → fix and re-audit
 
 ### BLOCKED
 - **Trigger:** PreToolUse hook detects an attempt to create code without an approved spec
@@ -105,7 +124,8 @@
 | `/sdd:sdd-build <name>` | → SPEC_BUILD | Builds spec via guided conversation |
 | `/sdd:sdd-review [path]` | SPEC_DRAFT → SPEC_REVIEW | Validates spec completeness |
 | `/sdd:sdd-gen [path]` | SPEC_APPROVED → CODE_GEN | Generates code from spec |
-| `/sdd:sdd-check [path]` | CODE_GEN → CONSISTENCY_CHECK | Verifies consistency |
+| `/sdd:sdd-check [path]` | CODE_GEN → CONSISTENCY_CHECK | Verifies spec consistency |
+| `/sdd:sdd-audit [path]` | CONSISTENCY_CHECK → AUDIT | Final quality gate |
 | `/sdd:sdd-status` | Any | Shows current workflow state |
 
 ## Session Memory

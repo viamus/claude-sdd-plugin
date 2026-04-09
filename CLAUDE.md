@@ -16,6 +16,7 @@ This project uses **Spec-Driven Design (SDD)**. Code should only be generated af
 - `/sdd:sdd-review` — Validates whether the spec is complete
 - `/sdd:sdd-gen` — Generates code from the approved spec
 - `/sdd:sdd-check` — Verifies code vs spec consistency
+- `/sdd:sdd-audit` — Final quality gate (best practices, security, tests, performance)
 - `/sdd:sdd-status` — Shows the state of all specs
 
 ## Plugin Structure
@@ -30,6 +31,7 @@ claude-sdd-plugin/
 │   ├── sdd-review/SKILL.md
 │   ├── sdd-gen/SKILL.md
 │   ├── sdd-check/SKILL.md
+│   ├── sdd-audit/SKILL.md
 │   └── sdd-status/SKILL.md
 ├── hooks/
 │   ├── hooks.json             # Hook configuration
