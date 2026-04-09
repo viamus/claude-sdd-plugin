@@ -107,6 +107,21 @@ Also checks: edge cases (null, empty, boundary values) — always on.
 | OWASP Top 10 | `check_owasp_top_10` | true | Common vulnerability patterns |
 | Auth/Authz | `check_auth` | true | Proper authentication/authorization |
 
+**External tools (optional):** The security dimension can optionally run external scanners. These are configured in `sdd.config.json` under `security.external_tools`. Each tool has:
+- `name`: tool identifier
+- `command`: CLI command to run
+- `enabled`: whether to use it (default: false)
+- `install_hint`: how to install if missing
+
+**How external tools work:**
+1. Only run tools where `enabled: true`
+2. Before running, check if the tool is installed (try `which {tool}` or `where {tool}`)
+3. If not installed: **skip silently** — log a note in the report: "⏭️ {tool} not found (install: {hint})"
+4. If installed: run the command, parse JSON output, include findings in the report
+5. External tool findings are **additive** — they supplement Claude's own analysis, not replace it
+
+**Important:** External tools are always optional. The security audit works without any external tools — Claude performs code analysis directly. Tools like Semgrep, npm audit, or Trivy add depth but are not required.
+
 ### Dimension 4: Test Coverage
 **Config key:** `test_coverage`
 **Default:** enabled, severity: error

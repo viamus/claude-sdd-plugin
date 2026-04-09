@@ -32,7 +32,27 @@
           "check_hardcoded_secrets": true,
           "check_owasp_top_10": true,
           "check_auth": true
-        }
+        },
+        "external_tools": [
+          {
+            "name": "semgrep",
+            "command": "semgrep --config auto --json .",
+            "enabled": false,
+            "install_hint": "pip install semgrep"
+          },
+          {
+            "name": "npm_audit",
+            "command": "npm audit --json",
+            "enabled": false,
+            "install_hint": "built-in with Node.js"
+          },
+          {
+            "name": "trivy",
+            "command": "trivy fs --format json .",
+            "enabled": false,
+            "install_hint": "brew install trivy / scoop install trivy"
+          }
+        ]
       },
       "test_coverage": {
         "enabled": true,
