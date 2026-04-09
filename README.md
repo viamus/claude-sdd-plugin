@@ -22,14 +22,37 @@ Plugin that enforces **Spec-Driven Design (SDD)** in Claude Code: code is only g
 /plugin install sdd@viamus-sdd
 ```
 
+### Updating
+
+```bash
+# Pull the latest version from GitHub
+/plugin marketplace update viamus-sdd
+
+# Reload plugins to apply changes
+/reload-plugins
+```
+
+### Uninstalling
+
+```bash
+# Remove the plugin
+/plugin uninstall sdd@viamus-sdd
+
+# Remove the marketplace source (optional)
+/plugin marketplace remove viamus-sdd
+```
+
 ### Local development
 
 ```bash
 # Clone the repository
 git clone https://github.com/viamus/claude-sdd-plugin.git
 
-# Use with --plugin-dir to test
+# Use with --plugin-dir to test locally (no marketplace needed)
 claude --plugin-dir ./claude-sdd-plugin
+
+# After making changes, reload without restarting
+/reload-plugins
 ```
 
 ## Usage
