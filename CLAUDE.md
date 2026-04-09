@@ -24,7 +24,8 @@ This project uses **Spec-Driven Design (SDD)**. Code should only be generated af
 ```
 claude-sdd-plugin/
 ├── .claude-plugin/
-│   └── plugin.json            # Plugin manifest
+│   ├── plugin.json            # Plugin manifest
+│   └── marketplace.json       # Marketplace catalog
 ├── skills/                    # Slash commands (namespaced as /sdd:*)
 │   ├── sdd-init/SKILL.md
 │   ├── sdd-build/SKILL.md
@@ -33,9 +34,6 @@ claude-sdd-plugin/
 │   ├── sdd-check/SKILL.md
 │   ├── sdd-audit/SKILL.md
 │   └── sdd-status/SKILL.md
-├── hooks/
-│   ├── hooks.json             # Hook configuration
-│   └── spec-enforcer.sh       # PreToolUse enforcement
 ├── templates/
 │   └── spec-template.md       # Spec template
 ├── specs/                     # User specs live here

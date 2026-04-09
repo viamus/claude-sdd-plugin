@@ -4,46 +4,32 @@ Plugin that enforces **Spec-Driven Design (SDD)** in Claude Code: code is only g
 
 ## What it does
 
-- **Spec-First Enforcement**: Hook intercepts attempts to create code without an approved spec
+- **Spec-First Workflow**: Guides developers to write specs before code
 - **Contract Validation**: Validates that the spec has inputs, outputs, business rules, and error handling
 - **Context Injection**: Feeds Claude with the spec context before generating code
 - **Consistency Check**: Verifies that the generated code is aligned with the spec
+- **Quality Audit**: Final gate reviewing best practices, security, tests, and performance
 
 ## Installation
 
-### Via Plugin Marketplace (recommended)
+### Via Marketplace
 
 ```bash
-# Add the marketplace (if needed)
-/plugin marketplace add <marketplace-url>
+# Add the marketplace
+/plugin marketplace add viamus/claude-sdd-plugin
 
 # Install the plugin
-/plugin install sdd
+/plugin install sdd@viamus-sdd
 ```
 
 ### Local development
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/claude-sdd-plugin.git
+git clone https://github.com/viamus/claude-sdd-plugin.git
 
 # Use with --plugin-dir to test
 claude --plugin-dir ./claude-sdd-plugin
-```
-
-### Prerequisites
-
-The enforcement hook requires `jq`:
-
-```bash
-# macOS
-brew install jq
-
-# Ubuntu/Debian
-sudo apt install jq
-
-# Windows (scoop)
-scoop install jq
 ```
 
 ## Usage
@@ -124,7 +110,8 @@ User authentication module via email/password with JWT.
 ```
 claude-sdd-plugin/
 ├── .claude-plugin/
-│   └── plugin.json                # Plugin manifest
+│   ├── plugin.json                # Plugin manifest
+│   └── marketplace.json           # Marketplace catalog
 ├── skills/                        # Slash commands (/sdd:*)
 │   ├── sdd-init/SKILL.md         # Create spec (template)
 │   ├── sdd-build/SKILL.md        # Build spec via conversation
@@ -133,9 +120,6 @@ claude-sdd-plugin/
 │   ├── sdd-check/SKILL.md        # Verify consistency
 │   ├── sdd-audit/SKILL.md        # Final quality gate
 │   └── sdd-status/SKILL.md       # Workflow status
-├── hooks/
-│   ├── hooks.json                 # Hook configuration
-│   └── spec-enforcer.sh          # Blocks code-gen without spec
 ├── templates/
 │   └── spec-template.md          # Default template
 ├── specs/                         # User specs
@@ -145,16 +129,6 @@ claude-sdd-plugin/
 ├── CLAUDE.md                      # Persistent SDD context
 └── README.md
 ```
-
-## How Enforcement Works
-
-The `spec-enforcer.sh` hook is configured via `hooks/hooks.json` and intercepts `Write` and `Edit`:
-
-1. If the target file is source code (`.ts`, `.js`, `.py`, etc.)
-2. And there is **no** approved spec in `specs/`
-3. The operation is **blocked** with guidance to create the spec first
-
-Config files, documentation, tests, and specs pass through without blocking.
 
 ## Development
 

@@ -36,11 +36,7 @@
 │                                     │    └──────┘ │RE-AUDIT│            │
 │                                     │             └────────┘            │
 │                                     │                                    │
-│  [user tries to write code without spec]                                 │
-│           ▼                                                              │
-│    ┌───────────┐                                                         │
-│    │ BLOCKED   │── "Create the spec first with /sdd:sdd-init"           │
-│    └───────────┘                                                         │
+│                                                                          │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -110,11 +106,6 @@
 - **Transition:**
   - If all pass → DONE
   - If critical failures → fix and re-audit
-
-### BLOCKED
-- **Trigger:** PreToolUse hook detects an attempt to create code without an approved spec
-- **Action:** Blocks the operation and guides the dev to create the spec first
-- **Transition:** → INIT
 
 ## Commands (Slash Commands)
 
