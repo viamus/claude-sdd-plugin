@@ -10,7 +10,10 @@
   "plugins": [
     {
       "name": "sdd",
-      "source": ".",
+      "source": {
+        "source": "github",
+        "repo": "viamus/claude-sdd-plugin"
+      },
       "description": "SDD Orchestrator — enforces spec-first methodology. Code is only generated after specifications are created, validated, and approved.",
       "version": "1.0.0",
       "author": {
