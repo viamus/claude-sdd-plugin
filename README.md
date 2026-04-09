@@ -94,6 +94,41 @@ Quality Audit (best practices, security, tests, performance)
 Deliver (final report with results)
 ```
 
+### Knowledge ingestion (`/sdd:sdd-learn`)
+
+Before building a spec, you can feed project context to make the conversation smarter:
+
+```bash
+# Ingest local files or directories
+/sdd:sdd-learn payment docs/architecture.md
+/sdd:sdd-learn payment src/models/
+
+# Ingest web pages (API docs, wikis)
+/sdd:sdd-learn payment https://stripe.com/docs/api
+
+# Web search for best practices
+/sdd:sdd-learn payment --search "payment idempotency patterns"
+
+# Mix multiple sources at once
+/sdd:sdd-learn payment docs/ src/models/*.ts https://api.example.com/docs
+```
+
+**How it works:**
+- First argument is always the **spec name** (e.g., `payment` → links to `specs/payment.spec.md`)
+- Use `global` as the name for project-wide knowledge shared across all specs
+- Knowledge is stored in `specs/.memory/<name>.knowledge.md`
+- Extracts: interfaces, data models, business rules, constraints, domain terms
+- **Incremental** — run multiple times, new sources append to existing knowledge
+- **Auto-loaded by `/sdd:sdd-build`** — the build conversation starts already informed
+
+```
+specs/.memory/
+├── payment.knowledge.md       ← from /sdd:sdd-learn payment ...
+├── payment.context.md         ← from /sdd:sdd-build payment (conversation memory)
+├── user-auth.knowledge.md     ← from /sdd:sdd-learn user-auth ...
+└── global.knowledge.md        ← shared across all specs
+```
+
 ### Audit configuration
 
 Customize audit rules per project via `sdd.config.json` (auto-created on first `/sdd:sdd-init`):
