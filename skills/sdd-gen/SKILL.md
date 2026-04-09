@@ -10,7 +10,12 @@ allowed-tools: Read Glob Write Edit Grep Bash(mkdir *) Bash(npm *) Bash(npx *) B
 You are the SDD Orchestrator. This command runs the **complete code delivery pipeline**:
 
 ```
-Generate → Check → Test (mandatory) → Audit → (auto-fix if needed) → Deliver
+┌→ Generate → Check → Test → Audit ─┐
+│        (if critical fixes needed)  │
+└────────────────────────────────────┘
+              │ (all pass)
+              ▼
+           Deliver
 ```
 
 The user does NOT need to run check or audit separately. This command handles everything.
@@ -35,11 +40,11 @@ Step 5: Test (MANDATORY — run all tests, must pass)
   → If tests fail: auto-fix and re-test (max 2 retries)
   → This step CANNOT be skipped or removed by any other step
 Step 6: Quality Audit (best practices, security, performance)
-  → If critical issues found: auto-correct and re-audit (max 2 retries)
-  → Audit MUST NOT remove or skip tests. If audit suggests removing a test, IGNORE that suggestion.
-Step 7: Re-Test (MANDATORY — run tests again after any audit fixes)
-  → Guarantees audit auto-fixes didn't break anything
-Step 8: Deliver (final summary with test results)
+  → If ALL pass: proceed to Deliver
+  → If critical issues found: loop back to Step 3 (re-generate with fixes)
+    The full cycle runs again: Generate → Check → Test → Audit
+    Maximum 2 full loops. After that, deliver with warnings.
+Step 7: Deliver (final summary with test results)
 ```
 
 ---
@@ -155,16 +160,24 @@ After all subagents complete, collect results for the unified delivery (Step 6).
 #### Single spec — report each pipeline step as it starts:
 
 ```
-⏳ [user-auth] Step 1/5: Generating code...
-⏳ [user-auth] Step 2/5: Running consistency check...
-✅ [user-auth] Step 2/5: Consistency check passed (6/6)
-⏳ [user-auth] Step 3/5: Running tests...
-✅ [user-auth] Step 3/5: Tests passed (12/12)
-⏳ [user-auth] Step 4/5: Running quality audit...
-✅ [user-auth] Step 4/5: Quality audit passed (6/6, 1 warning)
-⏳ [user-auth] Step 5/5: Re-running tests after audit...
-✅ [user-auth] Step 5/5: Tests passed (12/12, no regressions)
+⏳ [user-auth] Step 1/4: Generating code...
+⏳ [user-auth] Step 2/4: Running consistency check...
+✅ [user-auth] Step 2/4: Consistency check passed (6/6)
+⏳ [user-auth] Step 3/4: Running tests...
+✅ [user-auth] Step 3/4: Tests passed (12/12)
+⏳ [user-auth] Step 4/4: Running quality audit...
+✅ [user-auth] Step 4/4: Quality audit passed (6/6, 1 warning)
 📦 [user-auth] DELIVERED
+
+— or if audit finds critical issues —
+
+⏳ [user-auth] Step 4/4: Running quality audit...
+🔄 [user-auth] Audit found 1 critical issue. Looping back... (loop 1/2)
+⏳ [user-auth] Step 1/4: Re-generating with fixes...
+⏳ [user-auth] Step 2/4: Consistency check... ✅
+⏳ [user-auth] Step 3/4: Tests... ✅ (12/12)
+⏳ [user-auth] Step 4/4: Audit... ✅
+📦 [user-auth] DELIVERED (1 loop)
 ```
 
 #### Multi-spec — report wave progress and individual spec status:
@@ -174,9 +187,9 @@ After all subagents complete, collect results for the unified delivery (Step 6).
 
   ⏳ [user-auth] Generating...
   ⏳ [database] Generating...
-  ✅ [database] Generated → Check ✅ → Tests ✅ → Audit ✅ → Re-Test ✅
-  🔄 [user-auth] Generated → Check: 1 issue, auto-fixing (1/2)...
-  ✅ [user-auth] Generated → Check ✅ → Tests ✅ → Audit ✅ → Re-Test ✅
+  ✅ [database] Generate ✅ → Check ✅ → Tests ✅ → Audit ✅
+  🔄 [user-auth] Generate ✅ → Check: 1 issue, auto-fixing (1/2)...
+  ✅ [user-auth] Generate ✅ → Check ✅ → Tests ✅ → Audit ✅
 
 ✅ Wave 1/2 complete (2/2 delivered)
 
@@ -184,8 +197,8 @@ After all subagents complete, collect results for the unified delivery (Step 6).
 
   ⏳ [payment] Generating...
   ⏳ [notification] Generating...
-  ✅ [notification] Generated → Check ✅ → Tests ✅ → Audit ✅ → Re-Test ✅
-  ✅ [payment] Generated → Check ✅ → Tests ✅ → Audit ✅ (1⚠️) → Re-Test ✅
+  ✅ [notification] Generate ✅ → Check ✅ → Tests ✅ → Audit ✅
+  ✅ [payment] Generate ✅ → Check ✅ → Tests ✅ → Audit ✅ (1⚠️)
 
 ✅ Wave 2/2 complete (2/2 delivered)
 ```
@@ -297,48 +310,31 @@ After tests pass, run a quality audit across 6 dimensions:
 
 ### If critical issues (❌) found:
 
-1. Log what's wrong
-2. **Auto-correct**: fix the code
-3. Re-run the audit on the corrected code
-4. Maximum 2 correction attempts. If still failing, report in delivery summary.
+**Loop back to Step 3 (Generate)**. Do NOT patch in place — re-generate the code with the audit findings as additional context. This triggers the full cycle again:
 
-### Warnings (⚠️) are noted but do NOT trigger auto-correction.
-
-### CRITICAL RULE: Audit auto-fixes MUST NOT:
-- Delete or weaken any test
-- Remove test files
-- Change test assertions to make them pass
-- Skip or disable tests
-
-If the audit suggests removing a test, **IGNORE that suggestion**.
-
-Show progress:
 ```
-🔄 Quality audit: 5/6 ✅, 1 ❌ (Security: hardcoded API key). Fixing...
-🔄 Retry 1: 6/6 ✅. All clear.
+Generate (with fixes) → Check → Test → Audit
+```
+
+This guarantees that fixes are tested before delivery. Maximum **2 full loops**. After that, deliver with remaining issues as warnings.
+
+### Warnings (⚠️) are noted but do NOT trigger a re-loop.
+
+### Loop progress reporting:
+
+```
+🔄 Audit found 1 critical issue (Security: hardcoded API key)
+🔁 Loop 1/2: Re-generating with fixes...
+  ⏳ Re-generating code...
+  ✅ Consistency check passed (6/6)
+  ✅ Tests passed (12/12)
+  ✅ Quality audit passed (6/6)
+📦 Delivering
 ```
 
 ---
 
-## Step 7: Re-Test after Audit (MANDATORY — automatic, internal)
-
-**If the audit made ANY code changes (auto-fixes), run ALL tests again.**
-
-This ensures audit fixes didn't break anything. Same rules as Step 5.
-
-```
-⏳ Re-running tests after audit fixes...
-✅ Tests: 12/12 passed (no regressions)
-```
-
-If tests fail after audit fixes:
-1. Revert the audit fix that broke the test
-2. Report the audit issue as a warning instead of auto-fixing it
-3. Tests ALWAYS win over audit suggestions
-
----
-
-## Step 8: Deliver
+## Step 7: Deliver
 
 Update spec frontmatter: add `output_files`, update `updated_at`.
 
@@ -362,8 +358,8 @@ Show the final delivery report:
 | Generation | ✅ Complete |
 | Consistency Check | ✅ 6/6 passed |
 | Tests | ✅ 12/12 passed |
-| Quality Audit | ✅ 6/6 passed (2 warnings) |
-| Re-Test after Audit | ✅ 12/12 passed (no regressions) |
+| Quality Audit | ✅ 6/6 passed (1 warning) |
+| Loops | 0 (passed on first run) |
 
 ### Warnings (non-blocking):
 - ⚠️ Performance: Consider adding an index for the email lookup

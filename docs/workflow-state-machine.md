@@ -23,19 +23,23 @@
 │     ▲    │                    ┌─────────────────────────────────────┐    │
 │     │    │                    │  SDD-GEN PIPELINE (automated)       │    │
 │     └────┘                    │                                     │    │
-│   (multi-turn)                │  ┌─────────┐                       │    │
-│                               │  │GENERATE │                       │    │
-│                               │  └────┬────┘                       │    │
-│                               │       ▼                            │    │
-│                               │  ┌─────────┐   fail   ┌────────┐  │    │
-│                               │  │ CHECK   │──────────▶│AUTO-FIX│  │    │
-│                               │  └────┬────┘   ◀──────┘────────┘  │    │
-│                               │       │ pass        (max 2x)      │    │
-│                               │       ▼                            │    │
-│                               │  ┌─────────┐   fail   ┌────────┐  │    │
-│                               │  │ AUDIT   │──────────▶│AUTO-FIX│  │    │
-│                               │  └────┬────┘   ◀──────┘────────┘  │    │
-│                               │       │ pass        (max 2x)      │    │
+│   (multi-turn)                │                                     │    │
+│                               │  ┌─────────┐◀─────────────────┐    │    │
+│                               │  │GENERATE │  (loop back if   │    │    │
+│                               │  └────┬────┘  audit critical, │    │    │
+│                               │       ▼       max 2 loops)    │    │    │
+│                               │  ┌─────────┐                  │    │    │
+│                               │  │ CHECK   │ (auto-fix+retry) │    │    │
+│                               │  └────┬────┘                  │    │    │
+│                               │       ▼                       │    │    │
+│                               │  ┌─────────┐                  │    │    │
+│                               │  │  TEST   │ (mandatory)      │    │    │
+│                               │  └────┬────┘                  │    │    │
+│                               │       ▼              critical │    │    │
+│                               │  ┌─────────┐    ❌───────────┘    │    │
+│                               │  │ AUDIT   │                      │    │
+│                               │  └────┬────┘                      │    │
+│                               │       │ ✅ pass                    │    │
 │                               │       ▼                            │    │
 │                               │  ┌─────────┐                      │    │
 │                               │  │ DELIVER │                      │    │
@@ -52,7 +56,7 @@
 | `/sdd:sdd-init <name>` | Creates spec template |
 | `/sdd:sdd-build <name>` | Builds spec via guided conversation |
 | `/sdd:sdd-review [path]` | Validates spec completeness |
-| `/sdd:sdd-gen [path\|--all]` | Full pipeline: generate + check + audit + deliver |
+| `/sdd:sdd-gen [path\|--all]` | Full pipeline: generate + check + test + audit + deliver |
 | `/sdd:sdd-status` | Shows all specs, statuses, and dependency graph |
 
 ## Internal Steps (automated by sdd-gen)
@@ -60,7 +64,8 @@
 | Step | What it does | On failure |
 |------|-------------|------------|
 | **Check** | Verifies code matches spec (interfaces, rules, errors) | Auto-corrects and re-checks (max 2 retries) |
-| **Audit** | Reviews code quality, security, tests, performance | Auto-corrects critical issues and re-audits (max 2 retries) |
+| **Test** | Runs all tests (MANDATORY, cannot be skipped) | Auto-fixes code and re-tests (max 2 retries) |
+| **Audit** | Reviews code quality, security, performance | If critical: loops back to Generate (max 2 full loops) |
 
 ## State Descriptions
 
