@@ -3,6 +3,8 @@ name: {component-name}
 status: draft
 created_at: {date}
 updated_at: {date}
+depends_on: []
+unlocks: []
 output_files: []
 ---
 

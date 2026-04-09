@@ -89,9 +89,17 @@ Do NOT dump all questions at once. Go section by section, one topic at a time. F
   - "What if the data comes in the wrong format?"
   - "What about concurrency? Two requests at the same time?"
 
-**Round 6 — Dependencies**
+**Round 6 — Dependencies & Spec Chain**
 - "Does it need any libraries, external APIs, or services?"
 - "Is there anything that needs to be running for this to work? (database, cache, queue...)"
+- Check if other specs already exist in the project by reading `specs/*.spec.md`
+- If other specs exist, ask:
+  - "I found these existing specs: {list}. Does this component depend on any of them? (i.e., they need to be implemented BEFORE this one)"
+  - "Does this component unlock any of them? (i.e., they can only be implemented AFTER this one)"
+- For each dependency identified:
+  - Add the spec name to `depends_on` in frontmatter
+  - Also update the other spec's `unlocks` field to include this spec (bidirectional link)
+- If no other specs exist, ask: "Will this component have dependencies on other components you plan to build later? I'll note it so we can link them when those specs are created."
 
 ### 4. Progressive spec building
 

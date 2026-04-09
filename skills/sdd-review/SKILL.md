@@ -69,6 +69,13 @@ After the mandatory check, also evaluate:
 
 Report these as "💡 Improvement suggestions" without blocking approval.
 
+## Dependency Validation (Advisory)
+If the spec has `depends_on` entries:
+- Verify each referenced spec exists in `specs/`
+- If a referenced spec doesn't exist, warn: "⚠️ Dependency '{name}' not found — create it with /sdd:sdd-init"
+- Check for circular dependencies (A depends on B, B depends on A)
+- If circular: "❌ Circular dependency detected: {chain}. Resolve before proceeding."
+
 ## Rules
 - NEVER generate implementation code during review
 - NEVER approve a spec that fails mandatory criteria

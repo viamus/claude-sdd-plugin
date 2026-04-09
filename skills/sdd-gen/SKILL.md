@@ -34,10 +34,29 @@ This skill supports three modes:
 
 For each spec:
 - Read the file
-- **GATE CHECK**: Verify `status: approved` in frontmatter
-- If ANY spec is NOT approved, report it and exclude from generation:
-  "⚠️ Skipping {name} — not approved. Run /sdd:sdd-review first."
-- If NO specs pass the gate, STOP.
+- **GATE CHECK 1 — Approval**: Verify `status: approved` in frontmatter
+  - If NOT approved: "⚠️ Skipping {name} — not approved. Run /sdd:sdd-review first."
+- **GATE CHECK 2 — Dependency chain**: Check the `depends_on` field in frontmatter
+  - For each dependency listed, verify:
+    - The dependency spec exists in `specs/`
+    - The dependency spec has `status: approved`
+    - The dependency spec has `output_files` (code already generated)
+  - If ANY dependency is NOT satisfied, **block that spec** with a clear message:
+
+```
+🚫 Cannot generate {name} — unmet dependencies:
+
+| Dependency | Status | Code Generated | Issue |
+|------------|--------|----------------|-------|
+| user-auth | ✅ approved | ✅ yes | OK |
+| database | ✅ approved | ❌ no | Needs /sdd:sdd-gen database first |
+| payment | ❌ draft | ❌ no | Needs /sdd:sdd-review first |
+
+Resolve the dependencies above, then retry.
+```
+
+- If NO specs pass both gates, STOP.
+- For `--all` mode: automatically determine the correct **execution order** based on the dependency graph (topological sort). Generate specs with no dependencies first, then their dependents, etc. Specs at the same level can run in parallel.
 
 ### 3. Present the implementation plan
 
@@ -68,20 +87,27 @@ For each spec:
 Do you want to proceed with the generation?
 ```
 
-#### Multi-spec mode (parallel):
+#### Multi-spec mode (parallel with dependency awareness):
 
 ```
 ## 📦 Parallel Implementation Plan
 
-| # | Spec | Files to generate | Rules | Errors |
-|---|------|-------------------|-------|--------|
-| 1 | user-auth | src/user-auth.ts, .test.ts | 4 rules | 3 scenarios |
-| 2 | payment | src/payment.ts, .test.ts | 6 rules | 5 scenarios |
-| 3 | notification | src/notification.ts, .test.ts | 3 rules | 2 scenarios |
+### Execution Order (based on dependency chain):
 
-**Total:** 3 specs → ~9 files
+🔵 Wave 1 (no dependencies — run in parallel):
+  - user-auth (4 rules, 3 errors)
+  - database (2 rules, 2 errors)
 
-⚡ These will be generated in parallel using subagents.
+🔵 Wave 2 (depends on Wave 1 — run in parallel after Wave 1 completes):
+  - payment → depends on: user-auth, database (6 rules, 5 errors)
+  - notification → depends on: user-auth (3 rules, 2 errors)
+
+🔵 Wave 3 (depends on Wave 2):
+  - billing → depends on: payment (4 rules, 3 errors)
+
+**Total:** 5 specs → ~15 files in 3 waves
+
+⚡ Specs within each wave run in parallel. Waves run sequentially.
 
 Do you want to proceed?
 ```
